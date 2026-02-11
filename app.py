@@ -1,15 +1,11 @@
-# Proyecto: Interfaz Web de Recomendaciones (Netflix/Spotify)
-# Alumno: Yeray Padial Borrero
-# Asignatura: Programación de Inteligencia Artificial
-
 import streamlit as st
 import pandas as pd
 import pickle
 import numpy as np
 
-# -------------------------------------------------------------------------
+
 # 1. CONFIGURACIÓN DE LA PÁGINA
-# -------------------------------------------------------------------------
+
 # He configurado el título de la pestaña y he activado el layout 'wide' 
 # para aprovechar todo el ancho de la pantalla y dar una imagen profesional.
 st.set_page_config(
@@ -17,9 +13,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# -------------------------------------------------------------------------
+
 # 2. CARGA DE DATOS Y MODELO
-# -------------------------------------------------------------------------
+
 # He utilizado el decorador @st.cache_resource. 
 # Mi intención con esto es que el modelo y los datos pesados se carguen solo 
 # una vez en la memoria caché, evitando que la web se vuelva lenta recargando 
@@ -52,12 +48,12 @@ user_profiles = data["user_profiles"]
 original_movies = data["original_movies"]
 original_ratings = data["original_ratings"]
 
-# -------------------------------------------------------------------------
-# 3. LÓGICA DE RECOMENDACIÓN (MEJORADA POR YERAY PADIAL)
-# -------------------------------------------------------------------------
+
+# 3. Logica de recomendación
+
 def recomendar_peliculas(user_id, top_n=5):
     """
-    Lógica inteligente: Recomienda lo popular del cluster EXCLUYENDO lo que ya has visto.
+    Lógica inteligente: Recomienda lo popular del cluster excluyendo lo que ya se ha visto
     """
     # 1. Validación de usuario
     # Primero compruebo si el ID que he metido existe en mi matriz de entrenamiento.
@@ -65,7 +61,7 @@ def recomendar_peliculas(user_id, top_n=5):
         return None, "Usuario Nuevo o No Encontrado"
 
     # 2. Identificar el Cluster
-    # Consulto a qué grupo (cluster) asignó mi algoritmo K-Means a este usuario.
+    # Consulto a qué cluster asignó mi algoritmo K-Means a este usuario.
     user_cluster = user_profiles.loc[user_id, 'Cluster_KMeans']
     
     # 3. Identificar usuarios del mismo grupo
@@ -87,8 +83,7 @@ def recomendar_peliculas(user_id, top_n=5):
         rating_count=('rating', 'count')
     )
 
-    # 6. FILTRO PROFESIONAL:
-    # He aplicado dos condiciones simultáneas:
+    # 6. condiciones simultáneas:
     # A) Que la película tenga al menos 5 votos en el grupo (para asegurar calidad estadística).
     # B) Que la película NO esté en mi lista de "vistas" (para asegurar novedad).
     recs_filtradas = recs_stats[
@@ -96,7 +91,7 @@ def recomendar_peliculas(user_id, top_n=5):
         (~recs_stats.index.isin(peliculas_vistas_por_mi)) 
     ]
 
-    # He añadido esta condición de respaldo: si mis filtros son muy estrictos y no sale nada,
+    # si mis filtros son muy estrictos y no sale nada,
     # relajo la condición de votos mínimos pero mantengo que no sea una película vista.
     if recs_filtradas.empty:
         recs_filtradas = recs_stats[~recs_stats.index.isin(peliculas_vistas_por_mi)]
@@ -109,16 +104,15 @@ def recomendar_peliculas(user_id, top_n=5):
     
     return recommendations, user_cluster
 
-# -------------------------------------------------------------------------
-# 4. INTERFAZ DE USUARIO (Frontend)
-# -------------------------------------------------------------------------
+
+# 4. Frontend
+
 
 st.title("Motor de Recomendación Inteligente (K-Means)")
 st.markdown("""
-**Alumno:** Yeray Padial Borrero  
 Esta aplicación utiliza algoritmos de **Clustering** para agrupar usuarios. 
-A diferencia de un sistema simple, aquí detectamos tu "tribu" (gente con gustos iguales) 
-y te recomendamos las joyas ocultas que ellos aman y tú aún no has visto.
+A diferencia de un sistema simple, aquí se detecta gente con gustos iguales
+y se recomienda las joyas ocultas que ellos aman y tú aún no has visto.
 """)
 
 st.markdown("---")
@@ -146,7 +140,6 @@ if predict_btn:
         with col_display:
             # Muestro el Cluster asignado para dar feedback de que la IA ha funcionado.
             st.success(f"**Usuario identificado en el Cluster #{int(cluster_id)}**")
-            st.info("Estrategia: *Filtrado Colaborativo basado en Usuarios (User-Based Clustering)*")
             
             st.divider()
             
@@ -161,9 +154,6 @@ if predict_btn:
                     "genres": "Géneros"
                 }
             )
-            
-            # He decidido mantener la interfaz limpia y directa, sin gráficas adicionales.
-            st.caption("Resultados generados en tiempo real basados en similitud de usuarios.")
 
     else:
         st.warning("El usuario existe, pero no hemos encontrado recomendaciones nuevas con los filtros actuales.")
