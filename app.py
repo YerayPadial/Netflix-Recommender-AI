@@ -1,7 +1,3 @@
-# Proyecto: Interfaz Web de Recomendaciones (Netflix/Spotify)
-# Alumno: Yeray Padial Borrero
-# Asignatura: Programación de Inteligencia Artificial
-
 import streamlit as st
 import pandas as pd
 import pickle
