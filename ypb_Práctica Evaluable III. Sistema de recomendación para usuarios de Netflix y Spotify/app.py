@@ -1,11 +1,8 @@
-# Proyecto: Interfaz Web de Recomendaciones (Netflix/Spotify)
-# Alumno: Yeray Padial Borrero
-# Asignatura: Programación de Inteligencia Artificial
-
 import streamlit as st
 import pandas as pd
 import pickle
 import numpy as np
+
 
 # 1. CONFIGURACIÓN DE LA PÁGINA
 
@@ -56,13 +53,12 @@ original_ratings = data["original_ratings"]
 
 def recomendar_peliculas(user_id, top_n=5):
     """
-    Lógica inteligente: Recomienda lo popular del cluster excluyendo lo que ya se ha visto.
-    Ahora también devuelve el historial del usuario.
+    Lógica inteligente: Recomienda lo popular del cluster excluyendo lo que ya se ha visto
     """
     # 1. Validación de usuario
     # Primero compruebo si el ID que he metido existe en mi matriz de entrenamiento.
     if user_id not in user_profiles.index:
-        return None, "Usuario Nuevo o No Encontrado", None
+        return None, "Usuario Nuevo o No Encontrado"
 
     # 2. Identificar el Cluster
     # Consulto a qué cluster asignó mi algoritmo K-Means a este usuario.
@@ -73,11 +69,9 @@ def recomendar_peliculas(user_id, top_n=5):
     users_in_cluster = user_profiles[user_profiles['Cluster_KMeans'] == user_cluster].index
 
     # 4. Obtener lo que YA ha visto el usuario activo
-    # Busco qué películas ya ha visto el usuario.
-    peliculas_vistas_ids = original_ratings[original_ratings['userId'] == user_id]['movieId'].tolist()
-
-    # Creo un DataFrame con los títulos de lo que ya ha visto para mostrarlo en la web.
-    movies_watched_df = original_movies[original_movies['movieId'].isin(peliculas_vistas_ids)][['title', 'genres']]
+    # He implementado este paso para evitar redundancia: busco qué películas ya ha visto 
+    # el usuario para NO recomendárselas de nuevo.
+    peliculas_vistas_por_mi = original_ratings[original_ratings['userId'] == user_id]['movieId'].tolist()
 
     # 5. Analizar el Cluster
     # Extraigo todas las votaciones que han hecho los "vecinos" de mi cluster.
@@ -94,13 +88,13 @@ def recomendar_peliculas(user_id, top_n=5):
     # B) Que la película NO esté en mi lista de "vistas" (para asegurar novedad).
     recs_filtradas = recs_stats[
         (recs_stats['rating_count'] >= 5) & 
-        (~recs_stats.index.isin(peliculas_vistas_ids)) 
+        (~recs_stats.index.isin(peliculas_vistas_por_mi)) 
     ]
 
     # si mis filtros son muy estrictos y no sale nada,
     # relajo la condición de votos mínimos pero mantengo que no sea una película vista.
     if recs_filtradas.empty:
-        recs_filtradas = recs_stats[~recs_stats.index.isin(peliculas_vistas_ids)]
+        recs_filtradas = recs_stats[~recs_stats.index.isin(peliculas_vistas_por_mi)]
 
     # Ordeno los resultados por la mejor nota media y cojo solo el Top N solicitado.
     top_ids = recs_filtradas.sort_values(by='rating_mean', ascending=False).head(top_n).index
@@ -108,8 +102,7 @@ def recomendar_peliculas(user_id, top_n=5):
     # Cruzo los IDs con el dataframe de películas para obtener los Títulos y Géneros legibles.
     recommendations = original_movies[original_movies['movieId'].isin(top_ids)][['title', 'genres']]
     
-    # Ahora devuelvo 3 cosas: Recomendaciones, Cluster ID e Historial Visto
-    return recommendations, user_cluster, movies_watched_df
+    return recommendations, user_cluster
 
 
 # 4. Frontend
@@ -141,27 +134,13 @@ with col_control:
 if predict_btn:
     # He añadido un spinner para mejorar la experiencia de usuario mientras se procesan los datos.
     with st.spinner('Consultando la "Mente Colmena" del Cluster...'):
-        # Ahora desempaqueto 3 variables en lugar de 2
-        rec_df, cluster_id, watched_df = recomendar_peliculas(selected_user, top_n=num_recs)
+        rec_df, cluster_id = recomendar_peliculas(selected_user, top_n=num_recs)
 
     if rec_df is not None and not rec_df.empty:
         with col_display:
             # Muestro el Cluster asignado para dar feedback de que la IA ha funcionado.
             st.success(f"**Usuario identificado en el Cluster #{int(cluster_id)}**")
-            st.info("Estrategia: *Filtrado Colaborativo basado en Usuarios (User-Based Clustering)*")
             
-            # Uso un expander para que no ocupe mucho sitio visualmente si la lista es larga
-            with st.expander(f"Ver historial de películas vistas por Usuario {selected_user} ({len(watched_df)})"):
-                st.dataframe(
-                    watched_df, 
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config={
-                        "title": "Película",
-                        "genres": "Género"
-                    }
-                )
-
             st.divider()
             
             # Utilizo st.dataframe con 'use_container_width' para que la tabla quede estética y profesional.
